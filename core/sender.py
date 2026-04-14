@@ -21,19 +21,17 @@ from telebot.types import (
     ReplyKeyboardRemove,
 )
 
-from core.i18n import t
-
 MessageLike: TypeAlias = Message | CallbackQuery
 ReplyMarkup: TypeAlias = InlineKeyboardMarkup | ReplyKeyboardMarkup | ReplyKeyboardRemove | None
 
 
 class Sender:
-    __slots__ = ('bot', 'msg', 'lang')
+    __slots__ = ('bot', 'msg', "i18n")
 
-    def __init__(self, bot: AsyncTeleBot, msg: MessageLike, lang: str = 'uz') -> None:
+    def __init__(self, bot: AsyncTeleBot, msg: MessageLike, i18n) -> None:
         self.bot = bot
         self.msg = msg
-        self.lang = lang
+        self.i18n = i18n
 
     # ── IDs ──────────────────────────────────────────────────────────────────
 
@@ -42,6 +40,10 @@ class Sender:
         if isinstance(self.msg, Message):
             return self.msg.chat.id
         return self.msg.message.chat.id
+
+    @property
+    def user(self):
+        return self.msg.from_user
 
     @property
     def message_id(self) -> int:
@@ -54,10 +56,13 @@ class Sender:
         return self.msg.from_user.id
 
     # ── Translation ───────────────────────────────────────────────────────────
+    @property
+    def lang(self):
+        return self.i18n.get_user_lang(self.user_id)
 
-    def tr(self, key: str, **kwargs) -> str:
-        """Translate key using user's language."""
-        return t(key, self.lang, **kwargs)
+
+    def tr(self, key: str, **kwargs):
+        return self.i18n.gettext(self.lang, key, **kwargs)
 
     # ── Raw text send ─────────────────────────────────────────────────────────
 

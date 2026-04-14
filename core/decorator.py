@@ -1,101 +1,66 @@
-"""
-make_handler(bot, bot_name) — factory that returns a @handler decorator
-bound to a specific bot instance.
-
-The returned decorator:
-  1. Looks up the user's language from Redis cache
-  2. Injects Sender(bot, msg, lang) as the first argument
-  3. Passes through *args, **kwargs (StateContext from StateMiddleware flows through)
-  4. Never crashes the bot — all exceptions are caught and logged
-
-Usage:
-    # In loader.py:
-    bot = AsyncTeleBot(token)
-    handler = make_handler(bot, 'main_bot')
-
-    # In handlers:
-    @handler(commands=['start'], is_admin=True)
-    async def cmd_start(sender: Sender, state: StateContext): ...
-
-    @handler(callback=True, config=rate_factory.filter())
-    async def cb_rate(sender: Sender, state: StateContext): ...
-"""
 from __future__ import annotations
 
-import inspect
 import logging
-from collections.abc import Awaitable, Callable
+from collections.abc import Callable
 from functools import wraps
-from typing import Any
+from typing import Any, TypeAlias
 
 from telebot.async_telebot import AsyncTeleBot
-from telebot.types import CallbackQuery, Message
+from telebot.types import Message, CallbackQuery
 
-from bots.base.sender import Sender
-from core.i18n import get_user_lang
+from .sender import Sender
 
 logger = logging.getLogger(__name__)
 
+MessageLike: TypeAlias = Message | CallbackQuery
 _DEFAULT_CB_FILTER: Callable[[CallbackQuery], bool] = lambda _: True
+msg_type = False
 
+def make_handler(bot: AsyncTeleBot, i18n, bot_name: str = 'bot'):
 
-def make_handler(bot: AsyncTeleBot, bot_name: str = 'bot') -> Callable[..., Callable[[Callable], Callable[..., Awaitable[None]]]]:
-    """
-    Returns a @handler decorator factory bound to *bot*.
-
-    Parameters
-    ----------
-    bot       : AsyncTeleBot instance
-    bot_name  : used for logging only
-    """
-
-    def handler(
-        *,
-        callback: bool = False,
-        func: Callable[[Any], bool] | None = None,
-        **decorator_kwargs: Any,
-    ) -> Callable:
+    def handler(*, func: Callable[[Any], bool] | None = None, **decorator_kwargs: Any) -> Callable:
         """
         Decorator factory.
 
         Parameters
         ----------
-        callback        : True for callback_query handlers
         func            : optional additional filter predicate
         decorator_kwargs: passed directly to bot.message_handler / bot.callback_query_handler
         """
-
+        global msg_type
         def decorator(handler_func: Callable) -> Callable:
-            if not inspect.iscoroutinefunction(handler_func):
-                raise TypeError(
-                    f"{handler_func.__module__}.{handler_func.__qualname__} must be async"
-                )
 
             @wraps(handler_func)
-            async def wrapper(msg: Message | CallbackQuery, *args: Any, **kwargs: Any) -> None:
+            async def wrapper(msg: MessageLike, *args: Any, **kwargs: Any) -> None:
                 try:
-                    user = msg.from_user
-                    lang = await get_user_lang(user.id) if user else 'uz'
-                    sender = Sender(bot, msg, lang)
+                    global msg_type
+
+                    if isinstance(msg, CallbackQuery):
+                        msg_type = "callback"
+                    if isinstance(msg, Message):
+                        msg_type = "message"
+                    else:
+                        msg_type = "middleware"
+
+
+                    sender = Sender(bot, msg, i18n)
+
                     await handler_func(sender, *args, **kwargs)
-                except Exception:
+
+                except Exception as ex:
                     logger.exception(
-                        "[%s] Unhandled error in handler %s",
+                        "[%s] Unhandled error %s in handler %s",
                         bot_name,
+                        ex,
                         handler_func.__qualname__,
                     )
 
-            if callback:
-                bot.callback_query_handler(
-                    func=func or _DEFAULT_CB_FILTER,
-                    **decorator_kwargs,
-                )(wrapper)
+            if msg_type == "callback":
+                bot.callback_query_handler(func=func or _DEFAULT_CB_FILTER, **decorator_kwargs)(wrapper)
+            elif msg_type == "message":
+                bot.message_handler(func=func, **decorator_kwargs)(wrapper)
             else:
-                bot.message_handler(
-                    func=func,
-                    **decorator_kwargs,
-                )(wrapper)
-
+                pass
             return wrapper
 
         return decorator
