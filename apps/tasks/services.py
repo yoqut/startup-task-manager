@@ -296,7 +296,7 @@ def change_task_status(
 def get_user_tasks(user, status_filter: str = None):
     qs = TaskInstance.objects.filter(
         assigned_user=user,
-    ).values_list(
+    ).only(
         "id", "title", "status", "priority", "due_at", "created_at", "is_overdue"
     ).order_by("-created_at")
     if status_filter:
