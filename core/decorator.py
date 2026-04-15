@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 from __future__ import annotations
 
 import logging
@@ -14,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 MessageLike: TypeAlias = Message | CallbackQuery
 _DEFAULT_CB_FILTER: Callable[[CallbackQuery], bool] = lambda _: True
-msg_type = False
+msg_type = "message"
 
 def make_handler(bot: AsyncTeleBot, i18n, bot_name: str = 'bot'):
 

@@ -1,3 +1,6 @@
 {
-  "wellcome": "Xush kelibsiz {name}!\n\nIsmim Yoqutoy, Ishxona ishini boshqarish uchun sizga yordam berishdan mamnunman \n\nO'zingizga qulay tarifni tanlab faolashtiring\n\n- Standard\n- Pro (tavsiya)\n- Premium"
+  "wellcome": "Xush kelibsiz, {name}\\! 👋\n\n>Men Yoqutoyman — ishxona ishlarini boshqarishda sizga yordam berishdan mamnunman 😊\n\n\nO‘zingizga eng qulay tarifni tanlab faollashtiring\\:\n\n• Standard\n• Pro \\(tavsiya etiladi ⭐\\)\n• Premium\n\nAgar savollaringiz bo‘lsa, bemalol so‘rang — birga davom etamiz 🚀",
+  "standard": "🟢 Standard",
+  "pro": "🚀 Pro",
+  "premium": "💎 Premium"
 }

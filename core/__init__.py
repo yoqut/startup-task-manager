@@ -3,6 +3,8 @@ from dataclasses import dataclass
 from telebot.async_telebot import AsyncTeleBot
 from telebot.states.asyncio import StateMiddleware
 
+from core.keyboards import InlineKeyboardBuilder, ReplyKeyboardBuilder
+
 
 @dataclass
 class Config:

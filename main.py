@@ -3,4 +3,8 @@ import telegram.handlers
 
 if __name__ == "__main__":
     import asyncio
-    asyncio.run(bot.infinity_polling(skip_pending=True))
+    try:
+        print("Starting bot...")
+        asyncio.run(bot.infinity_polling(skip_pending=True))
+    except KeyboardInterrupt:
+        print("Stopping bot...")

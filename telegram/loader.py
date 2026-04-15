@@ -7,7 +7,7 @@ from core.config import settings
 
 state_storage = StateMemoryStorage()
 
-bot = AsyncTeleBot(settings.bot_token, state_storage=state_storage)
+bot = AsyncTeleBot(settings.bot_token, state_storage=state_storage, parse_mode="MarkdownV2")
 
 core_app = core.Core(bot)
 handle: Callable[..., Any] = core_app.setup()

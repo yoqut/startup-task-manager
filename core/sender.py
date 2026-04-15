@@ -66,26 +66,25 @@ class Sender:
 
     # ── Raw text send ─────────────────────────────────────────────────────────
 
-    async def text(self, slug: str, markup: ReplyMarkup = None, translate=True, parse_mode: str = 'HTML', **kwargs) -> Message:
+    async def text(self, slug: str, markup: ReplyMarkup = None, translate=True, **kwargs) -> Message:
         """Send raw text message."""
         content = self.tr(slug, **kwargs) if translate else slug.format(**kwargs)
         return await self.bot.send_message(
             self.chat_id,
             text=content,
             reply_markup=markup,
-            parse_mode=parse_mode,
             disable_web_page_preview=True,
         )
 
     # ── i18n send ─────────────────────────────────────────────────────────────
 
-    async def send(self, key: str, markup: ReplyMarkup = None, parse_mode: str = 'HTML', **kwargs) -> Message:
+    async def send(self, key: str, markup: ReplyMarkup = None, **kwargs) -> Message:
         """Translate key and send as message."""
-        return await self.text(self.tr(key, **kwargs), markup=markup, parse_mode=parse_mode)
+        return await self.text(self.tr(key, **kwargs), markup=markup)
 
     # ── Edit ──────────────────────────────────────────────────────────────────
 
-    async def edit_text(self, text: str, markup: ReplyMarkup = None, parse_mode: str = 'HTML', **kwargs) -> Message | None:
+    async def edit_text(self, text: str, markup: ReplyMarkup = None, **kwargs) -> Message | None:
         """Edit current message text (and optionally markup)."""
         content = text.format(**kwargs) if kwargs else text
         try:
@@ -93,7 +92,6 @@ class Sender:
                 text=content,
                 chat_id=self.chat_id,
                 message_id=self.message_id,
-                parse_mode=parse_mode,
                 reply_markup=markup,
                 disable_web_page_preview=True,
             )
@@ -111,9 +109,9 @@ class Sender:
                     pass
             raise
 
-    async def edit(self, key: str, markup: ReplyMarkup = None, parse_mode: str = 'HTML', **kwargs) -> Message | None:
+    async def edit(self, key: str, markup: ReplyMarkup = None, **kwargs) -> Message | None:
         """Translate key and edit current message."""
-        return await self.edit_text(self.tr(key, **kwargs), markup=markup, parse_mode=parse_mode)
+        return await self.edit_text(self.tr(key, **kwargs), markup=markup)
 
     async def edit_markup(self, markup: ReplyMarkup = None) -> None:
         """Edit only the reply markup of the current message."""
