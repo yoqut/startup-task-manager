@@ -1,11 +1,11 @@
 from telebot.asyncio_handler_backends import BaseMiddleware, CancelUpdate
-
+from telebot.async_telebot import AsyncTeleBot
 
 class FloodMiddleware(BaseMiddleware):
     def __init__(self, limit, bot, message_text) -> None:
         super().__init__()
         self.last_time = {}
-        self.bot = bot
+        self.bot: AsyncTeleBot = bot
         self.message_text = message_text
         self.limit = limit
         self.update_types = ['message']
@@ -19,6 +19,7 @@ class FloodMiddleware(BaseMiddleware):
 
             await self.bot.send_message(message.chat.id, self.message_text)
             return CancelUpdate()
+
 
         self.last_time[message.from_user.id] = message.date
         return None

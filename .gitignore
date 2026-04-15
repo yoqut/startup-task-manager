@@ -1,2 +1,15 @@
 .idea
 .venv
+staticfiles
+media
+static
+*.pyc
+__pycache__
+db.sqlite3
+*.log
+*.pot
+*.mo
+*.swp
+.DS_Store
+.claude
+

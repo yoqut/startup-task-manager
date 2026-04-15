@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from typing import Literal
 
 import telebot.types as types
 from telebot.callback_data import CallbackData
@@ -13,6 +14,32 @@ from telebot.callback_data import CallbackData
 def _t(lang, text: str, tr, **kwargs) -> str:
     """Apply translator if provided, otherwise return raw text."""
     return tr(lang, text, **kwargs) if tr else text.format(**kwargs)
+
+
+ButtonStyle = Literal["primary", "success", "danger"]
+
+
+# ---------------------------------------------------------------------------
+# 0. StyledInlineKeyboardButton — adds Telegram Bot API `style` field
+# ---------------------------------------------------------------------------
+class StyledInlineKeyboardButton(types.InlineKeyboardButton):
+    """
+    InlineKeyboardButton extended with the optional `style` field
+    from the Telegram Bot API spec:
+      - "primary"  → blue
+      - "success"  → green
+      - "danger"   → red
+    """
+
+    def __init__(self, *args, style: ButtonStyle | None = None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._style = style
+
+    def to_dict(self) -> dict:
+        d = super().to_dict()
+        if self._style:
+            d["style"] = self._style
+        return d
 
 
 # ---------------------------------------------------------------------------
@@ -60,14 +87,16 @@ class InlineKeyboardBuilder(BaseKeyboard):
         *,
         callback_data: str | None = None,
         url: str | None = None,
+        style: ButtonStyle | None = None,
         switch_inline_query: str | None = None,
         switch_inline_query_current_chat: str | None = None,
         **kwargs
     ) -> "InlineKeyboardBuilder":
-        btn = types.InlineKeyboardButton(
+        btn = StyledInlineKeyboardButton(
             text=_t(self.lang, text, self._tr, **kwargs),
             callback_data=callback_data,
             url=url,
+            style=style,
             switch_inline_query=switch_inline_query,
             switch_inline_query_current_chat=switch_inline_query_current_chat,
         )

@@ -41,6 +41,16 @@ def send_notification_sync(user, notification_type: str, message: str) -> bool:
         logger.warning(f"User {user.id} has no telegram_id, skipping notification")
         return False
 
+    try:
+        asyncio.get_running_loop()
+        logger.error(
+            "send_notification_sync called from async context for user %s — use anotify_* instead",
+            user.id,
+        )
+        return False
+    except RuntimeError:
+        pass  # No running loop — safe to use asyncio.run()
+
     log = log_notification(user, notification_type, message)
 
     try:

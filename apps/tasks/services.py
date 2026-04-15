@@ -66,47 +66,63 @@ def create_task_template(
 
 
 def create_task_instance_from_template(template: TaskTemplate) -> list[TaskInstance]:
-    instances = []
-    now = timezone.now()
-
+    now    = timezone.now()
     due_at = _calculate_due_date(template.recurrence_type, now)
 
     if template.assigned_user:
-        instance = _create_single_instance(
+        return [_create_single_instance(
             template=template,
             assigned_user=template.assigned_user,
             assigned_department=None,
             now=now,
             due_at=due_at,
-        )
-        instances.append(instance)
-    elif template.assigned_department:
+        )]
+
+    if template.assigned_department:
         from apps.users.models import UserRole
-        employees = template.assigned_department.members.filter(
+        employees = list(template.assigned_department.members.filter(
             role=UserRole.EMPLOYEE,
             is_active=True,
-        )
-        if employees.exists():
-            for employee in employees:
-                instance = _create_single_instance(
+        ))
+        if employees:
+            period_start, period_end = _calculate_period(template.report_frequency, now)
+            objs = [
+                TaskInstance(
                     template=template,
-                    assigned_user=employee,
+                    creator=template.creator,
+                    assigned_user=emp,
                     assigned_department=template.assigned_department,
-                    now=now,
+                    title=template.title,
+                    description=template.description,
+                    instructions=template.instructions,
+                    priority=template.priority,
+                    status=TaskStatus.NEW,
                     due_at=due_at,
+                    start_at=now,
+                    report_required=template.report_required,
+                    report_frequency=template.report_frequency,
+                    attachments_allowed=template.attachments_allowed,
+                    current_period_start=period_start,
+                    current_period_end=period_end,
                 )
-                instances.append(instance)
+                for emp in employees
+            ]
+            instances = TaskInstance.objects.bulk_create(objs)
+            logger.info(
+                "TaskInstances bulk-created from template: template=%d count=%d",
+                template.id, len(instances),
+            )
+            return instances
         else:
-            instance = _create_single_instance(
+            return [_create_single_instance(
                 template=template,
                 assigned_user=None,
                 assigned_department=template.assigned_department,
                 now=now,
                 due_at=due_at,
-            )
-            instances.append(instance)
+            )]
 
-    return instances
+    return []
 
 
 def _create_single_instance(
@@ -183,15 +199,15 @@ def create_one_time_task(
         )
         instances.append(instance)
     elif assigned_department:
-        employees = assigned_department.members.filter(
+        employees = list(assigned_department.members.filter(
             role=UserRole.EMPLOYEE,
             is_active=True,
-        )
-        if employees.exists():
-            for employee in employees:
-                instance = TaskInstance.objects.create(
+        ))
+        if employees:
+            objs = [
+                TaskInstance(
                     creator=creator,
-                    assigned_user=employee,
+                    assigned_user=emp,
                     assigned_department=assigned_department,
                     title=title,
                     description=description,
@@ -204,7 +220,9 @@ def create_one_time_task(
                     report_frequency=report_frequency,
                     attachments_allowed=attachments_allowed,
                 )
-                instances.append(instance)
+                for emp in employees
+            ]
+            instances = TaskInstance.objects.bulk_create(objs)
         else:
             instance = TaskInstance.objects.create(
                 creator=creator,
@@ -278,7 +296,7 @@ def change_task_status(
 def get_user_tasks(user, status_filter: str = None):
     qs = TaskInstance.objects.filter(
         assigned_user=user,
-    ).select_related("creator", "assigned_department").values_list(
+    ).values_list(
         "id", "title", "status", "priority", "due_at", "created_at", "is_overdue"
     ).order_by("-created_at")
     if status_filter:

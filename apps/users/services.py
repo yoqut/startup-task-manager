@@ -61,6 +61,14 @@ def get_department_employees(department_id: int):
     ).order_by("full_name")
 
 
+def get_department_head(department_id: int) -> "User | None":
+    return User.objects.filter(
+        department_id=department_id,
+        role=UserRole.HEAD,
+        is_active=True,
+    ).first()
+
+
 async def aget_department_head(department_id: int) -> User | None:
     return await User.objects.filter(
         department_id=department_id,
