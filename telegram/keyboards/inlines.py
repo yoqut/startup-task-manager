@@ -15,11 +15,13 @@ from core.keyboards import InlineKeyboardBuilder
 # ---------------------------------------------------------------------------
 # CallbackData factories
 # ---------------------------------------------------------------------------
-task_cb        = CallbackData("action",  "task_id",   prefix="task")
-task_status_cb = CallbackData("task_id", "status",    prefix="tstatus")
-report_cb      = CallbackData("action",  "report_id", prefix="report")
-page_cb        = CallbackData("entity",  "flt", "page", prefix="pg")
-admin_user_cb  = CallbackData("action",  "user_id",   prefix="auser")
+task_cb           = CallbackData("action",  "task_id",   prefix="task")
+task_status_cb    = CallbackData("task_id", "status",    prefix="tstatus")
+report_cb         = CallbackData("action",  "report_id", prefix="report")
+page_cb           = CallbackData("entity",  "flt", "page", prefix="pg")
+admin_user_cb     = CallbackData("action",  "user_id",   prefix="auser")
+admin_setrole_cb  = CallbackData("user_id", "role",                prefix="auser_setrole")
+admin_setdept_cb  = CallbackData("user_id", "role", "dept_id",     prefix="auser_dept")
 
 
 # ---------------------------------------------------------------------------
@@ -463,12 +465,64 @@ def users_list_inl(users: list, page: int = 0, total_pages: int = 1) -> InlineKe
 
 
 # ---------------------------------------------------------------------------
-# User detail — back button
+# User detail — role management + back
 # ---------------------------------------------------------------------------
 
-def user_detail_inl() -> InlineKeyboardMarkup:
+def user_detail_inl(user_id: int) -> InlineKeyboardMarkup:
     return (
         InlineKeyboardBuilder()
+        .button(
+            "🎭 Rol tayinlash",
+            callback_data=admin_user_cb.new(action="role", user_id=str(user_id)),
+            style="primary",
+        )
+        .row()
         .button("🔙 Orqaga", callback_data="back_to_users")
         .build()
     )
+
+
+def user_role_picker_inl(user_id: int) -> InlineKeyboardMarkup:
+    return (
+        InlineKeyboardBuilder()
+        .button(
+            "👑 Boss",
+            callback_data=admin_setrole_cb.new(user_id=str(user_id), role="boss"),
+            style="primary",
+        )
+        .row()
+        .button(
+            "🏅 Bo'lim boshlig'i",
+            callback_data=admin_setrole_cb.new(user_id=str(user_id), role="head"),
+            style="primary",
+        )
+        .row()
+        .button(
+            "👤 Ishchi",
+            callback_data=admin_setrole_cb.new(user_id=str(user_id), role="employee"),
+            style="primary",
+        )
+        .row()
+        .button(
+            "🔙 Orqaga",
+            callback_data=admin_user_cb.new(action="view", user_id=str(user_id)),
+        )
+        .build()
+    )
+
+
+def user_dept_picker_inl(user_id: int, role: str, departments: list) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    for dept in departments:
+        builder.button(
+            f"🏢 {dept.name}",
+            callback_data=admin_setdept_cb.new(
+                user_id=str(user_id), role=role, dept_id=str(dept.id)
+            ),
+            style="primary",
+        ).row()
+    builder.button(
+        "🔙 Orqaga",
+        callback_data=admin_user_cb.new(action="role", user_id=str(user_id)),
+    )
+    return builder.build()

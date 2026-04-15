@@ -92,3 +92,18 @@ def aget_all_active_employees() -> list:
 def aget_department_employees(department_id: int) -> list:
     return list(get_department_employees(department_id))
 
+
+@sync_to_async
+def set_user_role(user_id: int, role: str, department_id: int | None = None) -> User:
+    """Assign *role* (and optionally *department*) to the user with the given PK."""
+    from apps.departments.models import Department
+    user = User.objects.select_related("department").get(pk=user_id)
+    user.role = role
+    if role == UserRole.BOSS:
+        user.department = None
+    elif department_id:
+        user.department = Department.objects.get(pk=department_id)
+    user.save(update_fields=["role", "department", "updated_at"])
+    logger.info("User role updated: user_id=%d role=%s dept=%s", user_id, role, department_id)
+    return user
+

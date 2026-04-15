@@ -19,7 +19,11 @@ from telegram.keyboards.inlines import (
     confirm_broadcast_inl,
     users_list_inl,
     user_detail_inl,
+    user_role_picker_inl,
+    user_dept_picker_inl,
     admin_user_cb,
+    admin_setrole_cb,
+    admin_setdept_cb,
     page_cb,
     wizard_cancel_inl,
     get_main_menu,
@@ -134,13 +138,141 @@ async def cb_user_view(call):
         f"📅 Ro'yxatdan: {target.created_at.strftime('%d.%m.%Y')}\n"
         f"🔗 Telegram ID: <code>{target.telegram_id or '—'}</code>"
     )
-    await Sender.edit_html(call.message.chat.id, call.message.message_id, text, markup=user_detail_inl())
+    await Sender.edit_html(call.message.chat.id, call.message.message_id, text, markup=user_detail_inl(target.id))
 
 
 @bot.callback_query_handler(func=lambda c: c.data == "back_to_users")
 async def cb_back_to_users(call):
     await bot.answer_callback_query(call.id)
     await _show_users_list(call.message.chat.id, page=0, edit_msg_id=call.message.message_id)
+
+
+@bot.callback_query_handler(
+    func=lambda c: c.data.startswith("auser:") and ":role:" in c.data
+)
+async def cb_user_role_picker(call):
+    await bot.answer_callback_query(call.id)
+    admin = await Sender.require_role(call.from_user.id, call.message.chat.id, UserRole.BOSS)
+    if not admin:
+        return
+    try:
+        parsed    = admin_user_cb.parse(call.data)
+        target_id = int(parsed["user_id"])
+    except Exception:
+        return
+
+    from asgiref.sync import sync_to_async
+    from apps.users.models import User as DjUser
+    target = await sync_to_async(
+        lambda: DjUser.objects.filter(id=target_id).select_related("department").first()
+    )()
+    if not target:
+        await bot.answer_callback_query(call.id, "Foydalanuvchi topilmadi.", show_alert=True)
+        return
+
+    role_label = target.get_role_display() if target.has_role else "Tayinlanmagan"
+    text = (
+        f"🎭 <b>{target.get_display_name()}</b> uchun rol tanlang\n\n"
+        f"Joriy rol: <b>{role_label}</b>"
+    )
+    await Sender.edit_html(
+        call.message.chat.id, call.message.message_id, text,
+        markup=user_role_picker_inl(target_id),
+    )
+
+
+@bot.callback_query_handler(func=lambda c: c.data.startswith("auser_setrole:"))
+async def cb_user_setrole(call):
+    await bot.answer_callback_query(call.id)
+    admin = await Sender.require_role(call.from_user.id, call.message.chat.id, UserRole.BOSS)
+    if not admin:
+        return
+    try:
+        parsed    = admin_setrole_cb.parse(call.data)
+        target_id = int(parsed["user_id"])
+        role      = parsed["role"]
+    except Exception:
+        return
+
+    if role == "boss":
+        # No department needed — assign directly
+        from apps.users.services import set_user_role
+        target = await set_user_role(target_id, role)
+        await _notify_role_assigned(target, role, department=None)
+        await Sender.edit_html(
+            call.message.chat.id, call.message.message_id,
+            f"✅ <b>{target.get_display_name()}</b> ga <b>Boss</b> roli tayinlandi.",
+            markup=user_detail_inl(target_id),
+        )
+        return
+
+    # HEAD or EMPLOYEE — need department selection
+    from asgiref.sync import sync_to_async
+    from apps.departments.models import Department
+    departments = await sync_to_async(
+        lambda: list(Department.objects.filter(is_active=True).order_by("name"))
+    )()
+    if not departments:
+        await bot.answer_callback_query(call.id, "Hech qanday bo'lim topilmadi.", show_alert=True)
+        return
+
+    role_labels = {"head": "Bo'lim boshlig'i", "employee": "Ishchi"}
+    text = (
+        f"🏢 <b>{role_labels.get(role, role)}</b> uchun bo'lim tanlang:"
+    )
+    await Sender.edit_html(
+        call.message.chat.id, call.message.message_id, text,
+        markup=user_dept_picker_inl(target_id, role, departments),
+    )
+
+
+@bot.callback_query_handler(func=lambda c: c.data.startswith("auser_dept:"))
+async def cb_user_setdept(call):
+    await bot.answer_callback_query(call.id)
+    admin = await Sender.require_role(call.from_user.id, call.message.chat.id, UserRole.BOSS)
+    if not admin:
+        return
+    try:
+        parsed    = admin_setdept_cb.parse(call.data)
+        target_id = int(parsed["user_id"])
+        role      = parsed["role"]
+        dept_id   = int(parsed["dept_id"])
+    except Exception:
+        return
+
+    from apps.users.services import set_user_role
+    from apps.departments.models import Department
+    from asgiref.sync import sync_to_async
+
+    target = await set_user_role(target_id, role, department_id=dept_id)
+    dept   = await sync_to_async(lambda: Department.objects.get(pk=dept_id))()
+    await _notify_role_assigned(target, role, department=dept)
+
+    role_labels = {"head": "Bo'lim boshlig'i", "employee": "Ishchi"}
+    await Sender.edit_html(
+        call.message.chat.id, call.message.message_id,
+        f"✅ <b>{target.get_display_name()}</b> ga "
+        f"<b>{role_labels.get(role, role)}</b> roli tayinlandi. "
+        f"Bo'lim: <b>{dept.name}</b>",
+        markup=user_detail_inl(target_id),
+    )
+
+
+async def _notify_role_assigned(target, role: str, department) -> None:
+    """Send a Telegram notification to the target user about their new role."""
+    if not target.telegram_id:
+        return
+    role_labels = {"boss": "👑 Boss", "head": "🏅 Bo'lim boshlig'i", "employee": "👤 Ishchi"}
+    dept_line   = f"\n🏢 Bo'lim: <b>{department.name}</b>" if department else ""
+    text = (
+        f"🎉 Sizga yangi rol tayinlandi!\n\n"
+        f"🎭 Rol: <b>{role_labels.get(role, role)}</b>{dept_line}\n\n"
+        "Yangi imkoniyatlardan foydalanish uchun /start bosing."
+    )
+    try:
+        await Sender.send_html(target.telegram_id, text)
+    except Exception as exc:
+        logger.warning("Role notification failed for %s: %s", target.telegram_id, exc)
 
 
 # ---------------------------------------------------------------------------
