@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="DjangoCommandHistory">
+    <option name="commandArguments">
+      <map>
+        <entry key="check" value="" />
+        <entry key="seed_agents" value="" />
+        <entry key="test" value="--verbosity=2" />
+        <entry key="testserver" value="" />
+      </map>
+    </option>
+    <option name="recentCommands">
+      <list>
+        <option value="testserver" />
+        <option value="check" />
+        <option value="seed_agents" />
+        <option value="test" />
+      </list>
+    </option>
+  </component>
+</project>

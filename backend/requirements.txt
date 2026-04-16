@@ -1,0 +1,39 @@
+# Core Django
+Django==5.0.6
+djangorestframework==3.15.2
+djangorestframework-simplejwt==5.3.1
+django-cors-headers==4.4.0
+django-filter==24.2
+django-extensions==3.2.3
+
+# Database
+psycopg2-binary==2.9.9
+
+# Async / Task Queue
+celery==5.4.0
+redis==5.0.8
+django-celery-beat==2.7.0
+django-celery-results==2.5.1
+
+# AI / OpenAI
+openai==1.35.14
+
+# Telegram Bot
+python-telegram-bot==21.4
+
+# Vector Database
+qdrant-client==1.10.1
+
+# Environment & Config
+python-dotenv==1.0.1
+
+# Utilities
+Pillow==10.4.0
+gunicorn==22.0.0
+whitenoise==6.7.0
+pydantic==2.8.2
+
+# Document Processing
+PyPDF2==3.0.1
+beautifulsoup4==4.12.3
+requests==2.32.3
